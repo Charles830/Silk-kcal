@@ -1,0 +1,7 @@
+{
+  "name": "Silk Kcal",
+  "description": "拍摄您的食物，由 Gemini 提供支持的即时卡路里和营养估算。",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
