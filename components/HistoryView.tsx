@@ -12,7 +12,6 @@ interface HistoryViewProps {
   onUpdateRecord: (id: string, newMealType: MealType) => void;
   userGoal: string;
   targetCalories: string;
-  apiKey: string;
 }
 
 interface SwipeableRowProps {
@@ -137,7 +136,7 @@ const SwipeableRow: React.FC<SwipeableRowProps> = ({
 };
 
 export const HistoryView: React.FC<HistoryViewProps> = ({ 
-    onBack, history, onDeleteRecord, onUpdateRecord, userGoal, onBatchDeleteRecord, targetCalories, apiKey
+    onBack, history, onDeleteRecord, onUpdateRecord, userGoal, onBatchDeleteRecord, targetCalories
 }) => {
   const [selectedRecord, setSelectedRecord] = useState<HistoryRecord | null>(null);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -205,14 +204,10 @@ export const HistoryView: React.FC<HistoryViewProps> = ({
   };
 
   const handleAnalyzeDay = async (date: string, records: HistoryRecord[]) => {
-      if (!apiKey) {
-          alert("请先在设置中配置 API Key");
-          return;
-      }
       setAnalyzingDate(date);
       setIsAnalysing(true);
       try {
-          const result = await analyzeDailyDiet(records, userGoal, targetCalories, apiKey);
+          const result = await analyzeDailyDiet(records, userGoal, targetCalories);
           setAnalysisResult(result);
       } catch (e) {
           console.error(e);

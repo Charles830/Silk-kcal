@@ -8,7 +8,8 @@ interface CameraViewProps {
 }
 
 export const CameraView: React.FC<CameraViewProps> = ({ onImageSelected, isAnalyzing, onShutterClick }) => {
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | null>(null);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -27,14 +28,23 @@ export const CameraView: React.FC<CameraViewProps> = ({ onImageSelected, isAnaly
   const triggerCamera = () => {
     if (isAnalyzing) return;
     
-    // Allow parent to block camera access (e.g., missing API key)
+    // Allow parent to block access
     if (onShutterClick) {
       const canProceed = onShutterClick();
       if (!canProceed) return;
     }
 
-    fileInputRef.current?.click();
+    cameraInputRef.current?.click();
   };
+
+  const triggerGallery = () => {
+      if (isAnalyzing) return;
+      if (onShutterClick) {
+          const canProceed = onShutterClick();
+          if (!canProceed) return;
+      }
+      galleryInputRef.current?.click();
+  }
 
   return (
     <div className="relative h-full w-full flex flex-col bg-stone-100 overflow-hidden">
@@ -63,19 +73,43 @@ export const CameraView: React.FC<CameraViewProps> = ({ onImageSelected, isAnaly
         </div>
       </div>
 
-      {/* Hidden File Input */}
+      {/* Hidden File Inputs */}
+      {/* Camera Input (forces camera on mobile) */}
       <input
         type="file"
         accept="image/*"
         capture="environment"
-        ref={fileInputRef}
+        ref={cameraInputRef}
+        onChange={handleFileChange}
+        className="hidden"
+      />
+      {/* Gallery Input (allows selection) */}
+      <input
+        type="file"
+        accept="image/*"
+        ref={galleryInputRef}
         onChange={handleFileChange}
         className="hidden"
       />
 
       {/* Controls Area */}
-      <div className="bg-white px-6 pb-12 pt-8 rounded-t-[2rem] shadow-[0_-4px_20px_rgba(0,0,0,0.05)] flex justify-center items-center relative z-10">
+      <div className="bg-white px-6 pb-12 pt-8 rounded-t-[2rem] shadow-[0_-4px_20px_rgba(0,0,0,0.05)] flex justify-center items-center relative z-10 gap-8">
         
+        {/* Gallery Button */}
+        <button
+            onClick={triggerGallery}
+            disabled={isAnalyzing}
+            className={`
+                w-14 h-14 rounded-full bg-stone-100 text-stone-500
+                flex items-center justify-center
+                transition-all duration-200
+                ${isAnalyzing ? 'opacity-50 cursor-not-allowed' : 'hover:bg-stone-200 active:scale-95'}
+            `}
+            aria-label="从相册选择"
+        >
+            <ImageIcon size={24} />
+        </button>
+
         {/* Shutter Button */}
         <button
           onClick={triggerCamera}
@@ -102,6 +136,9 @@ export const CameraView: React.FC<CameraViewProps> = ({ onImageSelected, isAnaly
              )}
            </div>
         </button>
+        
+        {/* Placeholder for symmetry or future button */}
+        <div className="w-14 h-14" />
 
       </div>
     </div>

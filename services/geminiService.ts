@@ -8,12 +8,9 @@ const SYSTEM_INSTRUCTION = `
 如果图片中没有食物，请在 foodName 字段返回 "未知食物"，数值字段返回 0。
 `;
 
-export const analyzeFoodImage = async (base64Image: string, apiKey: string): Promise<NutritionData> => {
-  if (!apiKey) {
-    throw new Error("请在设置中配置 Gemini API Key");
-  }
-
-  const ai = new GoogleGenAI({ apiKey });
+export const analyzeFoodImage = async (base64Image: string): Promise<NutritionData> => {
+  // Use process.env.API_KEY as per system requirement
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   try {
     // Remove header if present (e.g., "data:image/jpeg;base64,")
@@ -63,12 +60,8 @@ export const analyzeFoodImage = async (base64Image: string, apiKey: string): Pro
   }
 };
 
-export const analyzeDailyDiet = async (records: HistoryRecord[], goal: string, targetCalories: string, apiKey: string): Promise<DailyAnalysisResult> => {
-    if (!apiKey) {
-      throw new Error("请在设置中配置 Gemini API Key");
-    }
-
-    const ai = new GoogleGenAI({ apiKey });
+export const analyzeDailyDiet = async (records: HistoryRecord[], goal: string, targetCalories: string): Promise<DailyAnalysisResult> => {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
     try {
         const dietSummary = records.map(r => 

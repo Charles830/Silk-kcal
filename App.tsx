@@ -19,7 +19,6 @@ const App: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [userGoal, setUserGoal] = useState<string>('保持体重');
   const [targetCalories, setTargetCalories] = useState<string>('2000');
-  const [apiKey, setApiKey] = useState<string>('');
   
   // UI State
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -34,12 +33,6 @@ const App: React.FC = () => {
 
   // Load User Data & Auth Check
   useEffect(() => {
-    // Load API Key (Device level)
-    const savedApiKey = localStorage.getItem('silk_kcal_apikey');
-    if (savedApiKey) {
-        setApiKey(savedApiKey);
-    }
-
     const savedUser = localStorage.getItem('nutrisnap_currentUser');
     if (savedUser) {
       handleLogin(savedUser);
@@ -100,34 +93,22 @@ const App: React.FC = () => {
     setShowOnboarding(false);
   };
 
-  const handleUpdateApiKey = (key: string) => {
-      setApiKey(key);
-      localStorage.setItem('silk_kcal_apikey', key);
-  };
-
   const handleShutterClick = () => {
-      if (!apiKey) {
-          setError("请先在设置中输入 Gemini API Key");
-          setIsSettingsOpen(true);
-          // Clear error message automatically after 3s
-          setTimeout(() => setError(null), 3000);
-          return false;
-      }
+      // Logic for permission checking can go here if needed
       return true;
   };
 
   const handleImageSelected = async (base64: string) => {
     // If we have a result, don't allow new analysis until closed
     if (result) return;
-    if (!apiKey) return;
 
     setIsAnalyzing(true);
     setError(null);
     try {
-      const data = await analyzeFoodImage(base64, apiKey);
+      const data = await analyzeFoodImage(base64);
       setResult(data);
     } catch (err) {
-      setError('分析失败，请检查网络或 API Key');
+      setError('分析失败，请检查网络连接');
       console.error(err);
       setTimeout(() => setError(null), 3000);
       setCameraKey(prev => prev + 1); // Reset camera if failed
@@ -281,7 +262,6 @@ const App: React.FC = () => {
           onUpdateRecord={handleUpdateRecord}
           userGoal={userGoal}
           targetCalories={targetCalories}
-          apiKey={apiKey}
         />
       )}
 
@@ -295,8 +275,6 @@ const App: React.FC = () => {
         onUpdateGoal={handleUpdateGoal}
         targetCalories={targetCalories}
         onUpdateTargetCalories={handleUpdateTargetCalories}
-        apiKey={apiKey}
-        onUpdateApiKey={handleUpdateApiKey}
       />
     </div>
   );

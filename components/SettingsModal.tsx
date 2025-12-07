@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, User, Settings as SettingsIcon, LogOut, Key } from 'lucide-react';
+import { X, User, Settings as SettingsIcon, LogOut } from 'lucide-react';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -10,13 +10,11 @@ interface SettingsModalProps {
   onUpdateGoal: (goal: string) => void;
   targetCalories: string;
   onUpdateTargetCalories: (calories: string) => void;
-  apiKey: string;
-  onUpdateApiKey: (key: string) => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ 
   isOpen, onClose, currentUser, onLogout, currentGoal, onUpdateGoal,
-  targetCalories, onUpdateTargetCalories, apiKey, onUpdateApiKey
+  targetCalories, onUpdateTargetCalories
 }) => {
   if (!isOpen) return null;
 
@@ -54,21 +52,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                    </p>
                  </div>
                </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700 ml-1 flex items-center gap-1">
-                <Key size={14} className="text-avocado-600"/> 
-                Gemini API Key
-              </label>
-              <input 
-                type="password"
-                value={apiKey}
-                onChange={(e) => onUpdateApiKey(e.target.value)}
-                placeholder="在此输入您的 API Key"
-                className="w-full p-3 bg-stone-50 border border-stone-200 rounded-xl text-gray-700 focus:outline-none focus:ring-2 focus:ring-avocado-400 font-mono text-sm"
-              />
-              <p className="text-xs text-stone-400 ml-1">Key 仅存储在本地，用于调用 AI 服务。</p>
             </div>
 
             <hr className="border-stone-100" />
