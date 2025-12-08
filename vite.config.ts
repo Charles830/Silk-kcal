@@ -11,7 +11,8 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     define: {
       // 将 process.env.API_KEY 替换为实际的环境变量值
-      'process.env.API_KEY': JSON.stringify(env.API_KEY),
+      // 如果不存在，则默认为空字符串，避免 undefined 导致代码崩溃
+      'process.env.API_KEY': JSON.stringify(env.API_KEY || ''),
     },
   };
 });

@@ -8,11 +8,19 @@ const SYSTEM_INSTRUCTION = `
 如果图片中没有食物，请在 foodName 字段返回 "未知食物"，数值字段返回 0。
 `;
 
-export const analyzeFoodImage = async (base64Image: string): Promise<NutritionData> => {
-  // Use process.env.API_KEY as per system requirement
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Helper to safely get the AI client
+const getAiClient = () => {
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) {
+    throw new Error("API Key 未配置。请在部署平台(Netlify/Zeabur)的环境变量中添加 API_KEY。");
+  }
+  return new GoogleGenAI({ apiKey });
+};
 
+export const analyzeFoodImage = async (base64Image: string): Promise<NutritionData> => {
   try {
+    const ai = getAiClient();
+    
     // Remove header if present (e.g., "data:image/jpeg;base64,")
     const cleanBase64 = base64Image.split(',')[1] || base64Image;
 
@@ -61,9 +69,9 @@ export const analyzeFoodImage = async (base64Image: string): Promise<NutritionDa
 };
 
 export const analyzeDailyDiet = async (records: HistoryRecord[], goal: string, targetCalories: string): Promise<DailyAnalysisResult> => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
     try {
+        const ai = getAiClient();
+
         const dietSummary = records.map(r => 
             `${r.mealType}: ${r.data.foodName} (${r.data.calories}kcal, 蛋白质:${r.data.protein}, 碳水:${r.data.carbs}, 脂肪:${r.data.fat})`
         ).join('\n');
