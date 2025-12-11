@@ -3,12 +3,12 @@
   "name": "Silk Kcal 智能营养师",
   "icons": [
     {
-      "src": "/icon-192.png",
+      "src": "https://youke2.picui.cn/s1/2025/12/11/693a1941f333e.png",
       "type": "image/png",
       "sizes": "192x192"
     },
     {
-      "src": "/icon-512.png",
+      "src": "https://youke2.picui.cn/s1/2025/12/11/693a1941f333e.png",
       "type": "image/png",
       "sizes": "512x512"
     }
