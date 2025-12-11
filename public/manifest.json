@@ -3,9 +3,9 @@
   "name": "Silk Kcal 智能营养师",
   "icons": [
     {
-      "src": "/icon-192.png",
+      "src": "/icon-512.png",
       "type": "image/png",
-      "sizes": "192x192"
+      "sizes": "512x512"
     }
   ],
   "start_url": ".",
