@@ -25,7 +25,7 @@ export const analyzeFoodImage = async (base64Image: string): Promise<NutritionDa
     const cleanBase64 = base64Image.split(',')[1] || base64Image;
 
     const response = await ai.models.generateContent({
-      model: "gemini-3-pro-preview",
+      model: "gemini-2.5-flash",
       contents: {
         parts: [
           {
@@ -40,6 +40,7 @@ export const analyzeFoodImage = async (base64Image: string): Promise<NutritionDa
         ],
       },
       config: {
+        thinkingConfig: { thinkingBudget: 0 },
         systemInstruction: SYSTEM_INSTRUCTION,
         responseMimeType: "application/json",
         responseSchema: {
@@ -92,9 +93,10 @@ export const analyzeDailyDiet = async (records: HistoryRecord[], goal: string, t
         `;
 
         const response = await ai.models.generateContent({
-            model: "gemini-3-pro-preview",
+            model: "gemini-2.5-flash",
             contents: { text: prompt },
             config: {
+                thinkingConfig: { thinkingBudget: 0 },
                 responseMimeType: "application/json",
                 responseSchema: {
                     type: Type.OBJECT,
