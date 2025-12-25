@@ -128,7 +128,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onLoginSuccess }) => {
           <div className="inline-flex items-center justify-center w-16 h-16 bg-avocado-100 rounded-full mb-4 text-avocado-600">
             <Utensils size={32} />
           </div>
-          <h1 className="text-2xl font-bold text-avocado-900">Silk Kcal</h1>
+          <h1 className="text-2xl font-bold text-avocado-900">Silk kcal</h1>
           <p className="text-avocado-700/80 mt-2 text-sm">您的智能饮食助手</p>
         </div>
 
