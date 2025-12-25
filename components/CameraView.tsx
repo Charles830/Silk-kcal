@@ -1,13 +1,14 @@
 import React, { useRef, useState } from 'react';
-import { Camera, Image as ImageIcon, Upload } from 'lucide-react';
+import { Camera, Image as ImageIcon, Keyboard } from 'lucide-react';
 
 interface CameraViewProps {
   onImageSelected: (base64: string) => void;
   isAnalyzing: boolean;
   onShutterClick?: () => boolean;
+  onManualInputClick: () => void;
 }
 
-export const CameraView: React.FC<CameraViewProps> = ({ onImageSelected, isAnalyzing, onShutterClick }) => {
+export const CameraView: React.FC<CameraViewProps> = ({ onImageSelected, isAnalyzing, onShutterClick, onManualInputClick }) => {
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -137,8 +138,20 @@ export const CameraView: React.FC<CameraViewProps> = ({ onImageSelected, isAnaly
            </div>
         </button>
         
-        {/* Placeholder for symmetry or future button */}
-        <div className="w-14 h-14" />
+        {/* Manual Input Button */}
+        <button
+            onClick={onManualInputClick}
+            disabled={isAnalyzing}
+            className={`
+                w-14 h-14 rounded-full bg-stone-100 text-stone-500
+                flex items-center justify-center
+                transition-all duration-200
+                ${isAnalyzing ? 'opacity-50 cursor-not-allowed' : 'hover:bg-stone-200 active:scale-95'}
+            `}
+            aria-label="手动输入"
+        >
+            <Keyboard size={24} />
+        </button>
 
       </div>
     </div>

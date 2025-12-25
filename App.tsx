@@ -5,12 +5,15 @@ import { SettingsModal } from './components/SettingsModal';
 import { AuthScreen } from './components/AuthScreen';
 import { HistoryView } from './components/HistoryView';
 import { Onboarding } from './components/Onboarding';
-import { analyzeFoodImage } from './services/geminiService';
+import { ManualInputModal } from './components/ManualInputModal';
+import { analyzeFoodImage, analyzeFoodText } from './services/geminiService';
 import { NutritionData, MealType, HistoryRecord } from './types';
-import { Settings, Utensils, History as HistoryIcon } from 'lucide-react';
+import { Settings, Utensils, History as HistoryIcon, Loader2 } from 'lucide-react';
+import { supabase } from './lib/supabase';
+import { User } from '@supabase/supabase-js';
 
 const App: React.FC = () => {
-  const [currentUser, setCurrentUser] = useState<string | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
   // App State
@@ -24,6 +27,7 @@ const App: React.FC = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [isManualInputOpen, setIsManualInputOpen] = useState(false);
   
   // Camera Reset Key (Increment to force reset)
   const [cameraKey, setCameraKey] = useState(0);
@@ -31,77 +35,89 @@ const App: React.FC = () => {
   // History State
   const [history, setHistory] = useState<HistoryRecord[]>([]);
 
-  // Load User Data & Auth Check
+  // Auth Check & Listener
   useEffect(() => {
-    const savedUser = localStorage.getItem('nutrisnap_currentUser');
-    if (savedUser) {
-      handleLogin(savedUser);
-    } else {
-      setIsCheckingAuth(false);
-    }
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setCurrentUser(session?.user ?? null);
+      if (session?.user) {
+         fetchHistory(session.user.id);
+         loadLocalSettings(session.user.email || '');
+      } else {
+         setIsCheckingAuth(false);
+      }
+    }).catch((err) => {
+        console.error("Supabase connect error:", err);
+        setIsCheckingAuth(false);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      const user = session?.user ?? null;
+      setCurrentUser(user);
+      if (user) {
+         fetchHistory(user.id);
+         loadLocalSettings(user.email || '');
+      } else {
+         setHistory([]);
+         setIsCheckingAuth(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const handleLogin = (username: string) => {
-    setCurrentUser(username);
-    localStorage.setItem('nutrisnap_currentUser', username);
-    
-    // Load History
-    const savedHistory = localStorage.getItem(`silk_kcal_history_${username}`);
-    if (savedHistory) {
-      setHistory(JSON.parse(savedHistory));
-    } else {
-      setHistory([]);
-    }
+  const loadLocalSettings = (email: string) => {
+      // Keep lightweight settings in localStorage for now
+      const savedGoal = localStorage.getItem(`silk_kcal_goal_${email}`);
+      if (savedGoal) setUserGoal(savedGoal);
+      
+      const savedCalories = localStorage.getItem(`silk_kcal_target_${email}`);
+      if (savedCalories) setTargetCalories(savedCalories);
 
-    // Load Goal
-    const savedGoal = localStorage.getItem(`silk_kcal_goal_${username}`);
-    if (savedGoal) {
-      setUserGoal(savedGoal);
-    } else {
-      setUserGoal('保持体重');
-    }
+      const onboardingCompleted = localStorage.getItem(`silk_kcal_onboarding_${email}`);
+      if (!onboardingCompleted) setShowOnboarding(true);
 
-    // Load Target Calories
-    const savedCalories = localStorage.getItem(`silk_kcal_target_${username}`);
-    if (savedCalories) {
-      setTargetCalories(savedCalories);
-    } else {
-      setTargetCalories('2000');
-    }
-
-    // Check Onboarding
-    const onboardingCompleted = localStorage.getItem(`silk_kcal_onboarding_${username}`);
-    if (!onboardingCompleted) {
-      setShowOnboarding(true);
-    }
-
-    setIsCheckingAuth(false);
+      setIsCheckingAuth(false);
   };
 
-  const handleLogout = () => {
+  const fetchHistory = async (userId: string) => {
+      const { data, error } = await supabase
+        .from('history_records')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+          console.error('Error fetching history:', error);
+      } else if (data) {
+          // Map DB records to UI HistoryRecord type
+          const mapped: HistoryRecord[] = data.map(item => ({
+              id: item.id,
+              timestamp: new Date(item.created_at).getTime(),
+              dateStr: new Date(item.created_at).toLocaleDateString('zh-CN'),
+              mealType: item.meal_type as MealType,
+              data: item.data as NutritionData
+          }));
+          setHistory(mapped);
+      }
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     setCurrentUser(null);
-    setHistory([]);
-    localStorage.removeItem('nutrisnap_currentUser');
     setShowHistory(false);
-    setShowOnboarding(false);
+    setIsSettingsOpen(false);
   };
 
   const handleCompleteOnboarding = () => {
-    if (currentUser) {
-      localStorage.setItem(`silk_kcal_onboarding_${currentUser}`, 'true');
+    if (currentUser?.email) {
+      localStorage.setItem(`silk_kcal_onboarding_${currentUser.email}`, 'true');
     }
     setShowOnboarding(false);
   };
 
-  const handleShutterClick = () => {
-      // Logic for permission checking can go here if needed
-      return true;
-  };
-
   const handleImageSelected = async (base64: string) => {
-    // If we have a result, don't allow new analysis until closed
     if (result) return;
-
     setIsAnalyzing(true);
     setError(null);
     try {
@@ -111,85 +127,136 @@ const App: React.FC = () => {
       setError('分析失败，请检查网络连接');
       console.error(err);
       setTimeout(() => setError(null), 3000);
-      setCameraKey(prev => prev + 1); // Reset camera if failed
+      setCameraKey(prev => prev + 1);
     } finally {
       setIsAnalyzing(false);
     }
   };
 
-  const handleSaveResult = (data: NutritionData, mealType: MealType) => {
+  const handleManualInput = async (text: string) => {
+      setIsAnalyzing(true);
+      setError(null);
+      try {
+          const data = await analyzeFoodText(text);
+          setResult(data);
+          setIsManualInputOpen(false); // Close input modal on success
+      } catch (err) {
+          setError('分析失败，请稍后重试');
+          console.error(err);
+          setTimeout(() => setError(null), 3000);
+      } finally {
+          setIsAnalyzing(false);
+      }
+  };
+
+  const handleSaveResult = async (data: NutritionData, mealType: MealType) => {
     if (!currentUser) return;
 
+    // Optimistic Update
+    const tempId = Date.now().toString();
     const newRecord: HistoryRecord = {
-      id: Date.now().toString(),
+      id: tempId,
       timestamp: Date.now(),
       dateStr: new Date().toLocaleDateString('zh-CN'),
       mealType,
       data
     };
+    setHistory([newRecord, ...history]);
 
-    const updatedHistory = [newRecord, ...history];
-    setHistory(updatedHistory);
-    localStorage.setItem(`silk_kcal_history_${currentUser}`, JSON.stringify(updatedHistory));
+    setResult(null);
+    setCameraKey(prev => prev + 1);
+
+    // Save to Supabase
+    const { data: dbData, error } = await supabase.from('history_records').insert({
+        user_id: currentUser.id,
+        meal_type: mealType,
+        data: data
+    }).select().single();
+
+    if (error) {
+        console.error('Save failed:', error);
+        setError('保存失败');
+        // Revert optimistic update
+        setHistory(prev => prev.filter(r => r.id !== tempId));
+    } else if (dbData) {
+        // Update temporary ID with real ID
+        setHistory(prev => prev.map(r => r.id === tempId ? {
+            ...r, 
+            id: dbData.id,
+            timestamp: new Date(dbData.created_at).getTime(),
+            dateStr: new Date(dbData.created_at).toLocaleDateString('zh-CN'),
+        } : r));
+    }
+  };
+
+  const handleUpdateRecord = async (id: string, newMealType: MealType) => {
+      // Optimistic
+      setHistory(prev => prev.map(r => r.id === id ? { ...r, mealType: newMealType } : r));
+
+      const { error } = await supabase
+        .from('history_records')
+        .update({ meal_type: newMealType })
+        .eq('id', id);
+        
+      if (error) {
+          console.error('Update failed:', error);
+          setError('更新失败');
+          fetchHistory(currentUser!.id); // Revert
+      }
+  };
+
+  const handleDeleteRecord = async (id: string) => {
+    setHistory(prev => prev.filter(item => item.id !== id));
     
-    setResult(null); // Close card
-    setCameraKey(prev => prev + 1); // Reset camera
+    const { error } = await supabase.from('history_records').delete().eq('id', id);
+    if (error) {
+        console.error('Delete failed:', error);
+        setError('删除失败');
+        fetchHistory(currentUser!.id);
+    }
   };
 
-  const handleUpdateRecord = (id: string, newMealType: MealType) => {
-      if (!currentUser) return;
-
-      const updatedHistory = history.map(record => {
-          if (record.id === id) {
-              return { ...record, mealType: newMealType };
-          }
-          return record;
-      });
-
-      setHistory(updatedHistory);
-      localStorage.setItem(`silk_kcal_history_${currentUser}`, JSON.stringify(updatedHistory));
-  };
-
-  const handleDeleteRecord = (id: string) => {
-    if (!currentUser) return;
-    const updatedHistory = history.filter(item => item.id !== id);
-    setHistory(updatedHistory);
-    localStorage.setItem(`silk_kcal_history_${currentUser}`, JSON.stringify(updatedHistory));
-  };
-
-  const handleBatchDeleteRecord = (ids: string[]) => {
-      if (!currentUser) return;
+  const handleBatchDeleteRecord = async (ids: string[]) => {
       const idSet = new Set(ids);
-      const updatedHistory = history.filter(item => !idSet.has(item.id));
-      setHistory(updatedHistory);
-      localStorage.setItem(`silk_kcal_history_${currentUser}`, JSON.stringify(updatedHistory));
+      setHistory(prev => prev.filter(item => !idSet.has(item.id)));
+
+      const { error } = await supabase.from('history_records').delete().in('id', ids);
+      if (error) {
+          console.error('Batch delete failed:', error);
+          setError('删除失败');
+          fetchHistory(currentUser!.id);
+      }
   };
 
   const handleCloseResult = () => {
     setResult(null);
-    setCameraKey(prev => prev + 1); // Reset camera
+    setCameraKey(prev => prev + 1);
   };
 
   const handleUpdateGoal = (newGoal: string) => {
     setUserGoal(newGoal);
-    if (currentUser) {
-      localStorage.setItem(`silk_kcal_goal_${currentUser}`, newGoal);
+    if (currentUser?.email) {
+      localStorage.setItem(`silk_kcal_goal_${currentUser.email}`, newGoal);
     }
   };
 
   const handleUpdateTargetCalories = (newCalories: string) => {
     setTargetCalories(newCalories);
-    if (currentUser) {
-      localStorage.setItem(`silk_kcal_target_${currentUser}`, newCalories);
+    if (currentUser?.email) {
+      localStorage.setItem(`silk_kcal_target_${currentUser.email}`, newCalories);
     }
   };
 
   if (isCheckingAuth) {
-    return <div className="min-h-[100dvh] bg-cream" />;
+    return (
+        <div className="min-h-[100dvh] bg-cream flex items-center justify-center">
+            <Loader2 className="animate-spin text-avocado-600" size={32} />
+        </div>
+    );
   }
 
   if (!currentUser) {
-    return <AuthScreen onLogin={handleLogin} />;
+    return <AuthScreen onLoginSuccess={() => {}} />; // Session listener handles redirect
   }
 
   if (showOnboarding) {
@@ -204,7 +271,8 @@ const App: React.FC = () => {
           key={cameraKey}
           onImageSelected={handleImageSelected} 
           isAnalyzing={isAnalyzing}
-          onShutterClick={handleShutterClick}
+          onShutterClick={() => true}
+          onManualInputClick={() => setIsManualInputOpen(true)}
         />
       </div>
 
@@ -233,7 +301,6 @@ const App: React.FC = () => {
       {/* Result Card Overlay */}
       {result && (
         <div className="absolute inset-0 z-30 flex items-end justify-center">
-            {/* Backdrop for result card */}
             <div className="absolute inset-0 bg-black/20 backdrop-blur-sm transition-opacity" onClick={handleCloseResult} />
             <ResultCard 
                 data={result} 
@@ -252,7 +319,7 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* History View Overlay */}
+      {/* Overlays */}
       {showHistory && (
         <HistoryView 
           onBack={() => setShowHistory(false)} 
@@ -265,16 +332,22 @@ const App: React.FC = () => {
         />
       )}
 
-      {/* Settings Modal */}
       <SettingsModal 
         isOpen={isSettingsOpen} 
         onClose={() => setIsSettingsOpen(false)}
-        currentUser={currentUser}
+        currentUser={currentUser.email || '用户'}
         onLogout={handleLogout}
         currentGoal={userGoal}
         onUpdateGoal={handleUpdateGoal}
         targetCalories={targetCalories}
         onUpdateTargetCalories={handleUpdateTargetCalories}
+      />
+
+      <ManualInputModal 
+         isOpen={isManualInputOpen}
+         onClose={() => setIsManualInputOpen(false)}
+         onAnalyze={handleManualInput}
+         isAnalyzing={isAnalyzing}
       />
     </div>
   );

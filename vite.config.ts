@@ -3,16 +3,16 @@ import react from '@vitejs/plugin-react';
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
-  // 加载当前模式下的环境变量 (例如 .env 文件或系统变量)
-  // 第三个参数 '' 表示加载所有变量，不仅仅是 VITE_ 开头的
+  // 加载当前模式下的环境变量
   const env = loadEnv(mode, (process as any).cwd(), '');
 
   return {
     plugins: [react()],
     define: {
-      // 将 process.env.API_KEY 替换为实际的环境变量值
-      // 如果不存在，则默认为空字符串，避免 undefined 导致代码崩溃
       'process.env.API_KEY': JSON.stringify(env.API_KEY || ''),
+      // 暴露 Supabase 变量给 process.env (虽然 Vite 推荐 import.meta.env，但这保持了统一性)
+      'process.env.VITE_SUPABASE_URL': JSON.stringify(env.VITE_SUPABASE_URL || ''),
+      'process.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(env.VITE_SUPABASE_ANON_KEY || ''),
     },
   };
 });

@@ -69,6 +69,56 @@ export const analyzeFoodImage = async (base64Image: string): Promise<NutritionDa
   }
 };
 
+export const analyzeFoodText = async (text: string): Promise<NutritionData> => {
+  try {
+    const ai = getAiClient();
+    const prompt = `
+    分析以下食物描述，并提供营养成分估算。
+    食物描述: "${text}"
+    
+    请返回一个 JSON 对象，包含以下字段：
+    - foodName (食物名称，中文字符串)
+    - calories (卡路里，整数)
+    - protein (蛋白质，字符串，例如 '20g')
+    - carbs (碳水化合物，字符串，例如 '15g')
+    - fat (脂肪，字符串，例如 '10g')
+    - explanation (简短的中文评价或建议，50字以内)
+
+    如果描述无法识别为食物，foodName 返回 "未知食物"，数值为 0。
+    `;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: { text: prompt },
+      config: {
+        thinkingConfig: { thinkingBudget: 0 },
+        responseMimeType: "application/json",
+        responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+                foodName: { type: Type.STRING },
+                calories: { type: Type.INTEGER },
+                protein: { type: Type.STRING },
+                carbs: { type: Type.STRING },
+                fat: { type: Type.STRING },
+                explanation: { type: Type.STRING },
+            },
+            required: ["foodName", "calories", "protein", "carbs", "fat", "explanation"],
+        },
+      },
+    });
+
+    if (response.text) {
+      return JSON.parse(response.text) as NutritionData;
+    } else {
+      throw new Error("No data returned from Gemini");
+    }
+  } catch (error) {
+    console.error("Error analyzing text:", error);
+    throw error;
+  }
+};
+
 export const analyzeDailyDiet = async (records: HistoryRecord[], goal: string, targetCalories: string): Promise<DailyAnalysisResult> => {
     try {
         const ai = getAiClient();
